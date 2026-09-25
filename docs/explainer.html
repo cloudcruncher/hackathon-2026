@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Banana Patch Explained</title>
+<style>
+  :root{
+    --bg:#faf7f2; --surface:#ffffff; --surface-2:#f3ecde; --ink:#1c1a17; --ink-soft:#4a463f;
+    --line:#e5ddce; --muted:#8a8272;
+    --accent:#e0a416; --accent-ink:#3a2c05; --accent-soft:#fbeecb;
+    --danger:#c0392b; --danger-soft:#f7e0dc;
+    --safe:#2e8b57; --safe-soft:#dcefe3;
+    --grey-dot:#b8b0a0;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#171512; --surface:#201d19; --surface-2:#2a2620; --ink:#f2ede3; --ink-soft:#c7bfb0;
+      --line:#332e26; --muted:#9a9182;
+      --accent:#f0bd45; --accent-ink:#2a2005; --accent-soft:#3a3115;
+      --danger:#e5705f; --danger-soft:#3a201c;
+      --safe:#5cc088; --safe-soft:#17301f;
+      --grey-dot:#6c6558;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#171512; --surface:#201d19; --surface-2:#2a2620; --ink:#f2ede3; --ink-soft:#c7bfb0;
+    --line:#332e26; --muted:#9a9182;
+    --accent:#f0bd45; --accent-ink:#2a2005; --accent-soft:#3a3115;
+    --danger:#e5705f; --danger-soft:#3a201c;
+    --safe:#5cc088; --safe-soft:#17301f;
+    --grey-dot:#6c6558;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;
+    font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding-inline:20px;padding-block:0}
+  h1,h2,h3{font-family:"Fraunces","Georgia",serif;text-wrap:balance;line-height:1.15;font-weight:600}
+  h1{font-size:clamp(2rem,6vw,3.2rem);margin:.1em 0 .1em;letter-spacing:-.01em}
+  h2{font-size:clamp(1.35rem,3.5vw,1.85rem);margin:0 0 .2em}
+  h3{font-size:1.05rem;margin:0 0 .3em}
+  p{margin:0 0 1em;max-width:68ch}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;text-transform:uppercase;letter-spacing:.18em;
+    font-size:.72rem;color:var(--muted);margin:0 0 .7em}
+  a{color:var(--accent)}
+
+  /* sticky top bar */
+  .topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .topbar .row{max-width:880px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:12px;justify-content:space-between}
+  .brand{font-family:"Fraunces",serif;font-weight:600;font-size:1.05rem;display:flex;align-items:center;gap:8px}
+  .dotmark{width:14px;height:14px;border-radius:50%;background:var(--accent);display:inline-block}
+  .pm-toggle{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-soft);cursor:pointer;
+    border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;user-select:none}
+  .pm-toggle .sw{width:34px;height:18px;border-radius:999px;background:var(--line);position:relative;transition:background .2s}
+  .pm-toggle .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:var(--surface);transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+  body.pm .pm-toggle .sw{background:var(--accent)}
+  body.pm .pm-toggle .sw::after{transform:translateX(16px)}
+
+  header.hero{padding-block:44px 26px}
+  .lede{font-size:1.18rem;color:var(--ink-soft);max-width:62ch}
+
+  section{padding-block:34px;border-top:1px solid var(--line)}
+  .stepno{font-family:"IBM Plex Mono",monospace;color:var(--accent);font-weight:600;font-size:.8rem;letter-spacing:.1em}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:640px){.grid2{grid-template-columns:1fr}}
+
+  /* buttons */
+  .btn{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:10px;padding:9px 14px;cursor:pointer;transition:all .15s}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+  .btn.ghost{background:transparent}
+  .btn.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+
+  /* embedding demo */
+  .embed-stage{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .readout{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+  .pill{font-family:"IBM Plex Mono",monospace;font-size:.85rem;padding:6px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}
+  .pill b{color:var(--ink)}
+  .pill.win{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+
+  /* slider */
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .bignum{font-family:"IBM Plex Mono",monospace;font-weight:600;font-variant-numeric:tabular-nums}
+
+  /* bars */
+  .barrow{display:grid;grid-template-columns:130px 1fr 54px;align-items:center;gap:10px;margin:9px 0}
+  .barlabel{font-size:.85rem;color:var(--ink-soft)}
+  .bartrack{height:20px;background:var(--surface-2);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .barfill{height:100%;border-radius:6px 0 0 6px;transition:width .35s ease}
+  .barval{font-family:"IBM Plex Mono",monospace;font-size:.85rem;text-align:right;font-variant-numeric:tabular-nums}
+
+  /* verdict box */
+  .verdict{border-radius:12px;padding:14px 16px;margin-top:12px;border:1px solid var(--line);background:var(--surface)}
+  .verdict.bad{background:var(--danger-soft);border-color:var(--danger)}
+  .verdict.good{background:var(--safe-soft);border-color:var(--safe)}
+  .verdict .tag{font-family:"IBM Plex Mono",monospace;font-size:.72rem;text-transform:uppercase;letter-spacing:.12em}
+  .verdict.bad .tag{color:var(--danger)} .verdict.good .tag{color:var(--safe)}
+
+  /* three generations */
+  .gen{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;padding:14px 0;border-bottom:1px dashed var(--line)}
+  .gen:last-child{border-bottom:none}
+  .gen .yr{font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--accent);white-space:nowrap}
+
+  /* evidence chips */
+  .ev{display:grid;gap:10px}
+  .evrow{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
+  .evrow .q{font-weight:600}
+  .evrow .a{color:var(--muted);font-size:.9rem;margin-top:6px;display:none}
+  .evrow.open .a{display:block}
+  .evrow .a .ok{color:var(--safe);font-weight:600}
+
+  /* speaker notes */
+  .speaker{display:none;border-left:3px solid var(--accent);background:var(--accent-soft);color:var(--ink);
+    border-radius:0 10px 10px 0;padding:12px 16px;margin:8px 0 14px}
+  body.pm .speaker{display:block}
+  .speaker .lbl{font-family:"IBM Plex Mono",monospace;font-size:.7rem;text-transform:uppercase;letter-spacing:.14em;color:var(--accent-ink);margin-bottom:4px}
+  .hint{font-size:.8rem;color:var(--muted);margin-top:6px}
+
+  /* quiz */
+  .quiz .opt{display:block;width:100%;text-align:left;margin:6px 0}
+  .quiz .opt.correct{background:var(--safe-soft);border-color:var(--safe)}
+  .quiz .opt.wrong{background:var(--danger-soft);border-color:var(--danger)}
+  .quiz .explain{font-size:.88rem;color:var(--ink-soft);margin-top:8px;display:none}
+  .quiz.answered .explain{display:block}
+
+  footer{padding-block:30px 60px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--line)}
+  .kbd{font-family:"IBM Plex Mono",monospace;font-size:.8rem;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<div class="topbar">
+  <div class="row">
+    <div class="brand"><span class="dotmark"></span> Banana Patch</div>
+    <div class="pm-toggle" id="pmToggle" role="switch" aria-checked="false" tabindex="0">
+      <span class="sw"></span><span>Presenter mode</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">Interactive explainer &middot; academic study</p>
+    <h1>How one sticker fools image AI</h1>
+    <p class="lede">Play with the ideas below to understand the project &mdash; then flip on
+      <strong>Presenter mode</strong> (top right) to reveal a script and speaking notes you can talk over.</p>
+    <div class="speaker"><div class="lbl">Speaker note</div>
+      Open with the hook: "In 2017 researchers made a sticker that fools image AI into seeing the wrong
+      thing &mdash; a banana read as a toaster. We rebuilt that idea with modern AI and asked two questions:
+      does it spread, and can you stop it?"</div>
+    <p class="hint">Tip: everything here runs offline on test images. The target is a harmless <b>banana</b> on purpose &mdash;
+      we're studying the mechanism, not attacking anything real.</p>
+  </header>
+
+  <!-- 1. EMBEDDINGS -->
+  <section>
+    <div class="stepno">IDEA 1</div>
+    <h2>AI sees by comparing "fingerprints"</h2>
+    <p>A model doesn't understand a photo like you do. It turns the image into an <strong>embedding</strong> &mdash;
+      a list of numbers that captures its <em>meaning</em>. To classify, it asks: <em>whose fingerprint is
+      this closest to?</em> The map below is that "meaning space." Move the photo and watch what the AI decides.</p>
+    <div class="speaker"><div class="lbl">Say this</div>
+      "Think of every image as a dot in a space of meanings. Similar things sit near each other. The AI just
+      picks the nearest cluster. Our attack doesn't argue with the AI &mdash; it quietly <b>drags the dot</b>
+      into the banana neighbourhood."</div>
+
+    <div class="embed-stage">
+      <svg id="embedSvg" viewBox="0 0 620 360" width="100%" role="img" aria-label="Meaning-space map with clusters and a movable photo dot"></svg>
+    </div>
+    <div class="btnrow">
+      <button class="btn" data-move="clean">Clean photo</button>
+      <button class="btn primary" data-move="adv">Apply adversarial patch</button>
+      <button class="btn" data-move="rand">Apply random sticker</button>
+    </div>
+    <div class="readout">
+      <span class="pill">AI decides: <b id="pred">fish</b></span>
+      <span class="pill" id="simPill">closeness to banana: <b id="sim">low</b></span>
+    </div>
+    <p class="hint">The <span style="color:var(--accent)"><b>amber</b></span> cluster is "banana"; grey clusters are other
+      objects. The dark dot is your photo. Notice the random sticker jiggles the dot but doesn't change the answer &mdash;
+      only the crafted pattern lands it in banana territory.</p>
+  </section>
+
+  <!-- 2. THREE GENERATIONS -->
+  <section>
+    <div class="stepno">IDEA 2</div>
+    <h2>Three generations of the same idea</h2>
+    <p>Where this project sits in the story &mdash; and what makes our part different.</p>
+    <div class="speaker"><div class="lbl">Say this</div>
+      "This builds on a 2017 paper. Our teammate modernised it; then we pushed it further to the AI people
+      actually use, and tested defenses."</div>
+    <div class="card">
+      <div class="gen"><div class="yr">2017</div><div>
+        <h3>The original paper</h3>
+        <p style="margin:0">A printable sticker that makes an old classifier shout a chosen wrong label
+          (their demo: banana &rarr; "toaster"). Trained to survive rotation, size and position so it works
+          when <em>printed and photographed</em>.</p></div></div>
+      <div class="gen"><div class="yr">This&nbsp;repo</div><div>
+        <h3>Barney's modern rebuild</h3>
+        <p style="margin:0">Attacks a whole <strong>ensemble</strong> of modern models, and instead of raising a
+          label "score", it matches the image's <strong>embedding fingerprint</strong> to real banana photos &mdash;
+          which works even for models with no labels at all. Plus a stealthier variant: optimise the
+          <em>mat an item sits on</em> instead of a sticker on the item.</p></div></div>
+      <div class="gen"><div class="yr">Our&nbsp;part</div><div>
+        <h3>Does it spread &mdash; and can you defend it?</h3>
+        <p style="margin:0">We tested the patch against AI it had <strong>never seen</strong>, including the vision
+          models inside chat assistants, and ran real defenses against it. Findings in the next two sections.</p></div></div>
+    </div>
+  </section>
+
+  <!-- 3. TRANSFER SLIDER -->
+  <section>
+    <div class="stepno">IDEA 3</div>
+    <h2>It spreads &mdash; even to AI it never trained on</h2>
+    <p>We trained the patch on a handful of models, then showed it to <strong>completely different</strong> chat
+      vision-AIs. Drag the patch size and watch how often each one is fooled into saying "banana".</p>
+    <div class="speaker"><div class="lbl">Say this</div>
+      "Here's the striking bit. These chatbot vision models never saw our patch in training, yet a bigger patch
+      fools them up to nine times out of ten. And our controls &mdash; a clean photo and a same-size random
+      sticker &mdash; stay at zero, so it's genuinely the pattern, not just covering the image."</div>
+
+    <div class="card">
+      <label for="areaSlider" style="display:flex;justify-content:space-between;font-size:.9rem">
+        <span>Patch size (% of the image)</span>
+        <span class="bignum" id="areaVal" style="color:var(--accent)">25%</span>
+      </label>
+      <input type="range" id="areaSlider" min="2" max="25" value="25" step="1">
+      <div id="transferBars" style="margin-top:16px"></div>
+    </div>
+    <p class="hint">Solid bars = the adversarial patch. The two grey control bars stay pinned near zero at every size.</p>
+  </section>
+
+  <!-- 4. DEFENSE PICKER -->
+  <section>
+    <div class="stepno">IDEA 4</div>
+    <h2>Can you defend against it?</h2>
+    <p>This is the part that matters. Click each defense to see whether it stops the attack (measured on a chat
+      vision model, at a large patch). Green = the attack was stopped.</p>
+    <div class="speaker"><div class="lbl">Say this</div>
+      "We tried the obvious fixes first. Blur, compress, smooth &mdash; none of them work; blur actually makes
+      the AI <b>more</b> sure it's a banana. The only thing that works is cutting out the exact sticker &mdash;
+      but that means you already know where it is, and finding it reliably is the unsolved part."</div>
+
+    <div class="btnrow" id="defBtns"></div>
+    <div class="card">
+      <div class="barrow">
+        <div class="barlabel">Says "banana"</div>
+        <div class="bartrack"><div class="barfill" id="defBar" style="width:0%;background:var(--danger)"></div></div>
+        <div class="barval" id="defVal">&mdash;</div>
+      </div>
+      <div class="verdict" id="defVerdict"><span class="tag" id="defTag">pick a defense</span>
+        <div id="defText" style="margin-top:4px">Click a defense above to see what it does.</div></div>
+    </div>
+    <p class="hint">Families: <b>blind transforms</b> (jpeg, blur, median) don't know a patch is there;
+      <b>segmentation</b> tries to find and cut out the patch &mdash; only the "perfect-location" version works.</p>
+  </section>
+
+  <!-- 5. SO WHAT -->
+  <section>
+    <div class="stepno">THE POINT</div>
+    <h2>Why it matters</h2>
+    <p>The weakness isn't one model's bug &mdash; it lives in the <strong>shared way modern image AI represents
+      meaning</strong>. It reaches the systems people actually use, and cheap filters don't stop it. So for any
+      decision that matters &mdash; a scan that admits, approves, or charges &mdash; <strong>keep a human in the loop.</strong></p>
+    <div class="ev">
+      <div class="evrow"><div class="q">"Isn't the sticker just covering the object?" &nbsp;<span class="mono" style="color:var(--muted)">tap</span></div>
+        <div class="a">No &mdash; that's why we test a <b>random sticker</b> of the same size and spot. It scores
+          <span class="ok">~0%</span>. Only the trained pattern works.</div></div>
+      <div class="evrow"><div class="q">"Were the photos already banana-ish?" &nbsp;<span class="mono" style="color:var(--muted)">tap</span></div>
+        <div class="a">No &mdash; the <b>clean photo</b> control also scores <span class="ok">~0%</span>.</div></div>
+      <div class="evrow"><div class="q">"Does it only break toy models?" &nbsp;<span class="mono" style="color:var(--muted)">tap</span></div>
+        <div class="a">No &mdash; it transfers to <b>CLIP, SigLIP and real chat VLMs</b> it never trained on,
+          <span class="ok">up to ~91%</span>.</div></div>
+    </div>
+    <div class="speaker"><div class="lbl">Closing line</div>
+      "So: not one model's bug, it reaches real deployed AI, and simple filters don't fix it. For anything that
+      matters, a human still has to check what the AI thinks it sees."</div>
+  </section>
+
+  <!-- 6. QUIZ -->
+  <section>
+    <div class="stepno">CHECK YOURSELF</div>
+    <h2>Do you have it? (30-second check)</h2>
+    <div class="card quiz" id="quiz1">
+      <p style="font-weight:600;margin-bottom:6px">Why do we test a random-noise sticker as well as the real patch?</p>
+      <button class="btn opt" data-correct="0">Because random stickers also say banana</button>
+      <button class="btn opt" data-correct="1">To prove the effect is the <em>pattern</em>, not just covering the image</button>
+      <button class="btn opt" data-correct="0">To make the patch bigger</button>
+      <div class="explain">Right idea: the random control scores ~0%, so a rise can only be the crafted pattern.</div>
+    </div>
+    <div class="card quiz" id="quiz2" style="margin-top:12px">
+      <p style="font-weight:600;margin-bottom:6px">Which defense actually stopped the attack?</p>
+      <button class="btn opt" data-correct="0">Blurring the image</button>
+      <button class="btn opt" data-correct="0">JPEG compression</button>
+      <button class="btn opt" data-correct="1">Cutting out the exact patch region</button>
+      <div class="explain">Correct. Blur/JPEG didn't help (blur made it worse); only removing the exact patch worked &mdash;
+        and finding it is the hard part.</div>
+    </div>
+  </section>
+
+  <!-- FULL SCRIPT -->
+  <section>
+    <div class="stepno">YOUR SCRIPT</div>
+    <h2>The 90-second talk</h2>
+    <p class="hint">Shown always, but especially handy in Presenter mode. Say it in your own words.</p>
+    <div class="card" style="line-height:1.7">
+      <p>"Back in 2017, researchers showed you could print a small sticker that fools image AI into seeing
+        whatever you want &mdash; their famous demo made a banana read as a <em>toaster</em>. Our project rebuilds
+        that with modern models, but attacks the model's <strong>embedding</strong> &mdash; the numeric
+        'fingerprint' it makes for an image. We train one patch so that, wherever you stick it, the image's
+        fingerprint looks like a banana's.</p>
+      <p>Then we asked two questions. First, <strong>does it spread?</strong> We trained on a few models, then
+        showed it to <em>completely different</em> AI it had never seen &mdash; including the vision models inside
+        chat assistants. They said 'banana' up to nine times out of ten. Our controls &mdash; a clean photo and a
+        same-size random sticker &mdash; stayed at zero, so it's genuinely the pattern.</p>
+      <p>Second, <strong>can you defend it?</strong> The obvious fixes &mdash; blur, compress, smooth &mdash; didn't
+        work; blur made it <em>worse</em>. The only thing that stopped it was cutting out the exact spot, which
+        means you have to <em>find</em> the sticker first &mdash; the hard, unsolved part.</p>
+      <p style="margin:0">So the takeaway: this isn't one model's bug, it reaches the AI people actually use, and
+        simple filters don't fix it. For anything that matters, <strong>you still need a human in the loop.</strong>"</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Academic study only &mdash; offline, target = banana, no real system involved. Full results &amp; photos: the <a href="index.html">project write-up</a> and PR. Toggle <span class="kbd">Presenter mode</span> for speaker notes throughout.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ---------- Presenter mode ----------
+  var pm = document.getElementById("pmToggle");
+  function setPM(on){ document.body.classList.toggle("pm", on); pm.setAttribute("aria-checked", on?"true":"false");
+    try{ localStorage.setItem("bp_pm", on?"1":"0"); }catch(e){} }
+  pm.addEventListener("click", function(){ setPM(!document.body.classList.contains("pm")); });
+  pm.addEventListener("keydown", function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); pm.click(); } });
+  try{ if(localStorage.getItem("bp_pm")==="1") setPM(true); }catch(e){}
+
+  // ---------- Embedding-space demo ----------
+  var svg = document.getElementById("embedSvg");
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var clusters = {
+    banana:{x:500,y:250,color:"var(--accent)",label:"banana"},
+    fish:{x:150,y:270,color:"var(--grey-dot)",label:"fish"},
+    dog:{x:170,y:110,color:"var(--grey-dot)",label:"dog"},
+    truck:{x:430,y:95,color:"var(--grey-dot)",label:"truck"}
+  };
+  function rnd(n){ return (Math.random()*2-1)*n; }
+  // scatter cluster members
+  Object.keys(clusters).forEach(function(k){
+    var c=clusters[k];
+    for(var i=0;i<7;i++){
+      var dot=document.createElementNS(SVGNS,"circle");
+      dot.setAttribute("cx", c.x+rnd(34)); dot.setAttribute("cy", c.y+rnd(30));
+      dot.setAttribute("r", 6); dot.setAttribute("fill", c.color); dot.setAttribute("opacity","0.55");
+      svg.appendChild(dot);
+    }
+    var t=document.createElementNS(SVGNS,"text");
+    t.setAttribute("x", c.x); t.setAttribute("y", c.y+52); t.setAttribute("text-anchor","middle");
+    t.setAttribute("fill", k==="banana"?"var(--accent)":"var(--muted)");
+    t.setAttribute("font-family","IBM Plex Mono, monospace"); t.setAttribute("font-size","12");
+    t.setAttribute("font-weight", k==="banana"?"600":"400");
+    t.textContent=c.label; svg.appendChild(t);
+  });
+  // the photo dot
+  var photo=document.createElementNS(SVGNS,"circle");
+  photo.setAttribute("r","10"); photo.setAttribute("fill","var(--ink)");
+  photo.setAttribute("stroke","var(--bg)"); photo.setAttribute("stroke-width","2");
+  photo.style.transition="cx .7s cubic-bezier(.5,0,.2,1), cy .7s cubic-bezier(.5,0,.2,1)";
+  svg.appendChild(photo);
+  var plabel=document.createElementNS(SVGNS,"text");
+  plabel.setAttribute("fill","var(--ink)"); plabel.setAttribute("font-family","IBM Plex Sans, sans-serif");
+  plabel.setAttribute("font-size","12"); plabel.setAttribute("font-weight","600"); plabel.textContent="your photo";
+  svg.appendChild(plabel);
+
+  var home={x:150,y:270}; // starts in the fish cluster
+  function nearest(x,y){
+    var best=null,bd=1e9;
+    Object.keys(clusters).forEach(function(k){
+      var c=clusters[k],d=Math.hypot(x-c.x,y-c.y); if(d<bd){bd=d;best=k;}
+    });
+    return {name:clusters[best].label, dist:bd};
+  }
+  function place(x,y){
+    photo.setAttribute("cx",x); photo.setAttribute("cy",y);
+    plabel.setAttribute("x", x+14); plabel.setAttribute("y", y+4);
+    var n=nearest(x,y);
+    document.getElementById("pred").textContent=n.name;
+    var bd=Math.hypot(x-clusters.banana.x, y-clusters.banana.y);
+    var close = bd<50 ? "very high" : bd<130 ? "medium" : "low";
+    var simEl=document.getElementById("sim"); simEl.textContent=close;
+    var pill=document.getElementById("simPill");
+    pill.classList.toggle("win", n.name==="banana");
+  }
+  place(home.x,home.y);
+  document.querySelectorAll("[data-move]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var m=b.getAttribute("data-move");
+      if(m==="clean") place(home.x,home.y);
+      else if(m==="adv") place(clusters.banana.x-8+rnd(12), clusters.banana.y+rnd(12));
+      else if(m==="rand") place(home.x+rnd(24), home.y+rnd(24));
+    });
+  });
+
+  // ---------- Transfer slider ----------
+  // anchor data: says-banana % at patch area {2,5,12,25}. Controls flat ~0.
+  var models=[
+    {name:"SmolVLM-500M", pts:{2:61,5:77,12:84,25:91}},
+    {name:"SmolVLM-256M", pts:{2:25,5:44,12:64,25:75}},
+    {name:"Qwen2.5-VL-3B",pts:{2:23,5:36,12:50,25:61}}
+  ];
+  var anchors=[2,5,12,25];
+  function interp(pts, a){
+    if(a<=2) return pts[2]; if(a>=25) return pts[25];
+    var lo=2; for(var i=0;i<anchors.length-1;i++){ if(a>=anchors[i]&&a<=anchors[i+1]){lo=anchors[i];var hi=anchors[i+1];
+      var t=(a-lo)/(hi-lo); return pts[lo]+(pts[hi]-pts[lo])*t; } }
+    return pts[25];
+  }
+  var tb=document.getElementById("transferBars");
+  function bar(label,val,color){
+    var pct=Math.max(0,Math.min(100,val));
+    return '<div class="barrow"><div class="barlabel">'+label+'</div>'+
+      '<div class="bartrack"><div class="barfill" style="width:'+pct+'%;background:'+color+'"></div></div>'+
+      '<div class="barval">'+Math.round(val)+'%</div></div>';
+  }
+  function renderTransfer(a){
+    var html="";
+    models.forEach(function(m){ html+=bar(m.name, interp(m.pts,a), "var(--danger)"); });
+    html+=bar("clean photo (control)", 0, "var(--grey-dot)");
+    html+=bar("random sticker (control)", 2, "var(--grey-dot)");
+    tb.innerHTML=html;
+  }
+  var slider=document.getElementById("areaSlider");
+  slider.addEventListener("input", function(){
+    document.getElementById("areaVal").textContent=slider.value+"%";
+    renderTransfer(+slider.value);
+  });
+  renderTransfer(25);
+
+  // ---------- Defense picker ----------
+  var defenses=[
+    {id:"none", label:"No defense", vlm:83, good:false, text:"Baseline: the chat model says “banana” 83% of the time."},
+    {id:"jpeg", label:"JPEG compress", vlm:88, good:false, text:"No help — the pattern survives compression."},
+    {id:"blur", label:"Gaussian blur", vlm:98, good:false, text:"Worse! Blur smears away the real scene while the patch's structure survives."},
+    {id:"median", label:"Median filter", vlm:94, good:false, text:"No help — the attack still gets through."},
+    {id:"seg_blind", label:"Find & remove (blind)", vlm:86, good:false, text:"Barely helps — it can't reliably find the patch, and it damages clean images too."},
+    {id:"seg_oracle", label:"Cut out exact patch", vlm:0, good:true, text:"Works completely — but only because it's told exactly where the patch is. Finding it is the unsolved part."}
+  ];
+  var dbtns=document.getElementById("defBtns");
+  defenses.forEach(function(d,i){
+    var b=document.createElement("button"); b.className="btn"+(i===0?" active":""); b.textContent=d.label;
+    b.addEventListener("click", function(){ selectDef(d, b); }); dbtns.appendChild(b);
+  });
+  function selectDef(d, btn){
+    document.querySelectorAll("#defBtns .btn").forEach(function(x){x.classList.remove("active");});
+    btn.classList.add("active");
+    var bar=document.getElementById("defBar"); bar.style.width=Math.max(1,d.vlm)+"%";
+    bar.style.background = d.good ? "var(--safe)" : "var(--danger)";
+    document.getElementById("defVal").textContent=d.vlm+"%";
+    var v=document.getElementById("defVerdict"); v.className="verdict "+(d.good?"good":"bad");
+    document.getElementById("defTag").textContent=d.good?"attack stopped":"attack still works";
+    document.getElementById("defText").textContent=d.text;
+  }
+  selectDef(defenses[0], dbtns.children[0]);
+
+  // ---------- Evidence toggles ----------
+  document.querySelectorAll(".evrow").forEach(function(r){
+    r.addEventListener("click", function(){ r.classList.toggle("open"); });
+  });
+
+  // ---------- Quiz ----------
+  document.querySelectorAll(".quiz").forEach(function(q){
+    q.querySelectorAll(".opt").forEach(function(o){
+      o.addEventListener("click", function(){
+        if(q.classList.contains("answered")) return;
+        q.classList.add("answered");
+        q.querySelectorAll(".opt").forEach(function(x){
+          if(x.getAttribute("data-correct")==="1") x.classList.add("correct");
+        });
+        if(o.getAttribute("data-correct")!=="1") o.classList.add("wrong");
+      });
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
